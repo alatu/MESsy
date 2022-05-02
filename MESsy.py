@@ -157,6 +157,13 @@ def post_login(m_id: int, login_data: Login_Data, response: Response):
         with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
             cursor = conn.cursor()
             cursor.execute("""
+                SELECT * FROM Machine WHERE id==?;
+            """, (m_id, ))
+            rows = cursor.fetchall()
+            if not rows:
+                response.status_code = status.HTTP_400_BAD_REQUEST
+                return Result_Success(success=False, message="Serialnumber doesn't exist")
+            cursor.execute("""
                 INSERT INTO Machine_login(id_room, id_current_worker, id_machine)
                 VALUES (?, ?, ?);
             """, (login_data.Room, login_data.User, m_id))
