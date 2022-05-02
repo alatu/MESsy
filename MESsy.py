@@ -4,7 +4,7 @@ import sqlite3
 from time import time_ns, asctime, localtime, daylight, tzname
 from pydantic import BaseModel
 from starlette.responses import FileResponse
-from typing import List, Optional
+from typing import List
 
 
 class Help_Object(BaseModel):
@@ -61,6 +61,11 @@ class Job_Infos(BaseModel):
     QR_Codes: QR_Codes
 
 
+class Job_Bestaetigung(BaseModel):
+    Materialnumber: int
+    Job: int
+
+
 class Error_Message(BaseModel):
     Message: str
     Interrupted: bool
@@ -68,7 +73,7 @@ class Error_Message(BaseModel):
 
 class Result_Success(BaseModel):
     success: bool
-    message: Optional[str]
+    message: str | None
 
 
 def time_to_str(time):
@@ -78,6 +83,12 @@ def time_to_str(time):
 def cancel_job(m_id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM Lock_DB;
+        """)  # Lock DB to prevent race conditions
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
         cursor.execute("""
             SELECT id_product, quantity FROM Current_Jobs WHERE id_machine == ?;
         """, (m_id, ))
@@ -96,7 +107,7 @@ def get_job_from_db(m_id):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT p.id, cj.id, p.product_name, ps.needed_materials, ps.step_description, p.needle_size, p.yarn_count, ps.specified_time, ps.url_images, ps.url_videos, r.url_qr_code, m.url_qr_code, p.url_qr_code, ps.url_qr_code, ps.additional_information FROM Current_Jobs cj
+            SELECT p.id, ps.id, p.product_name, ps.needed_materials, ps.step_description, p.needle_size, p.yarn_count, ps.specified_time, ps.url_images, ps.url_videos, r.url_qr_code, m.url_qr_code, p.url_qr_code, ps.url_qr_code, ps.additional_information FROM Current_Jobs cj
             INNER JOIN Machine_login ml ON cj.id_machine==ml.id
             INNER JOIN Products p ON cj.id_product==p.id
             INNER JOIN Product_Steps ps ON cj.current_step==ps.step_number AND p.id==cj.id_product
@@ -111,12 +122,12 @@ def get_job_from_db(m_id):
 app = FastAPI(title="MESsy app")
 
 
-@app.get('/favicon.ico')
+@app.get("/favicon.ico")
 def favicon():
     return FileResponse("MESsy/favicon.png")
 
 
-@app.get("/MESsy/logininfo")
+@app.get("/MESsy/logininfo", response_model=Login_Info)
 def get_logininfo():
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor_worker = conn.cursor()
@@ -138,7 +149,7 @@ def get_logininfo():
     return Login_Info(Users=Workers, Rooms=Rooms)
 
 
-@app.post("/MESsy/{m_id}/login", status_code=status.HTTP_201_CREATED)
+@app.post("/MESsy/{m_id}/login", status_code=status.HTTP_201_CREATED, response_model=Result_Success)
 def post_login(m_id: int, login_data: Login_Data, response: Response):
     success = True
     message = None
@@ -156,7 +167,7 @@ def post_login(m_id: int, login_data: Login_Data, response: Response):
     return Result_Success(success=success, message=message)
 
 
-@app.delete("/MESsy/{m_id}/login")
+@app.delete("/MESsy/{m_id}/login", response_model=Result_Success)
 def delete_login(m_id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
@@ -169,17 +180,26 @@ def delete_login(m_id: int):
     return Result_Success(success=True)
 
 
-@app.get("/MESsy/{m_id}/help")
-def get_help(m_id: int):
+@app.get("/MESsy/{m_id}/help", response_model=Result_Success)
+def get_help(m_id: int, response: Response):
     help_time = time_ns() // 1_000_000_000
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO help (id_machine_login, call_time) VALUES (?, ?);", (m_id, help_time))
-    return {"id": m_id, "time": time_to_str(help_time)}
+        cursor.execute("""
+            SELECT id FROM Machine_Login
+            WHERE id_machine == ?
+        """, (m_id, ))
+        rows = cursor.fetchall()
+        if not rows:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return Result_Success(success=False, message="Machine not logged in")
+        cursor.execute("""
+            INSERT INTO help (id_machine_login, call_time) VALUES (?, ?);
+        """, (rows[0][0], help_time))
+    return Result_Success(success=True)
 
 
-@app.get("/MESsy/{m_id}/job")
+@app.get("/MESsy/{m_id}/job", response_model=Job_Infos)
 def get_job(m_id: int, response: Response):
     rows = get_job_from_db(m_id)
     if rows:
@@ -190,6 +210,9 @@ def get_job(m_id: int, response: Response):
     else:
         with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
             cursor = conn.cursor()
+            cursor.execute("""
+                DELETE FROM Lock_DB;
+            """)  # Lock DB to prevent race conditions
             cursor.execute("""
                 PRAGMA foreign_keys = 1;
             """)
@@ -207,10 +230,10 @@ def get_job(m_id: int, response: Response):
                 return Result_Success(success=False, message="No Job found")
             cursor.execute("""
                 INSERT INTO Current_Jobs(id_machine, id_product, current_step, quantity)
-                VALUES (?, ?, 1, ?)
-            """, (rows_possible_jobs[0][1], rows_possible_jobs[0][2], rows_possible_jobs[0][3]))
+                VALUES (?, ?, ?, ?);
+            """, (rows_possible_jobs[0][1], rows_possible_jobs[0][2], 1, rows_possible_jobs[0][3]))
             cursor.execute("""
-                DELETE FROM Open_Jobs WHERE id==?
+                DELETE FROM Open_Jobs WHERE id==?;
             """, (rows_possible_jobs[0][0], ))
         rows = get_job_from_db(m_id)
         qr_codes = QR_Codes(
@@ -220,18 +243,66 @@ def get_job(m_id: int, response: Response):
     return return_value
 
 
-@app.post("/MESsy/{m_id}/job")
-def put_job(m_id: int):
-    return {"Hallo": m_id}
+@app.post("/MESsy/{m_id}/job", response_model=Result_Success)
+def post_job(m_id: int, bestaetigung: Job_Bestaetigung, response: Response):
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM Lock_DB;
+        """)  # Lock DB to prevent race conditions
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        cursor.execute("""
+            SELECT cj.current_step, cj.quantity, ml.id_current_worker FROM Current_Jobs cj
+            INNER JOIN Product_Steps ps ON ps.id_product==cj.id_product AND cj.current_step==ps.step_number
+            INNER JOIN Machine_login ml ON ml.id==cj.id_machine
+            WHERE cj.id_machine==? AND cj.id_product==? AND ps.id==?;
+        """, (m_id, bestaetigung.Materialnumber, bestaetigung.Job))
+        rows = cursor.fetchall()
+        if not rows:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return Result_Success(success=False, message="No current Job with this Materialnumber and Jobnumber found")
+        current_step = rows[0][0]
+        quantity = rows[0][1]
+        worker = rows[0][2]
+        cursor.execute("""
+            SELECT * FROM Product_Steps
+            WHERE id_product==? AND step_number==?;
+        """, (bestaetigung.Materialnumber, current_step + 1))
+        rows = cursor.fetchall()
+        if not rows:
+            cursor.execute("""
+                INSERT INTO Produced_Products (id_product, id_worker, serial_number_machine, completion_time)
+                VALUES (?, ?, ?, ?);
+            """, (bestaetigung.Materialnumber, worker, m_id, time_ns() // 1_000_000_000))
+            if quantity:
+                cursor.execute("""
+                    UPDATE Current_Jobs
+                    SET current_step=1, quantity=?
+                    WHERE id_machine==?;
+                """, (quantity - 1, m_id))
+            else:
+                cursor.execute("""
+                    DELETE FROM Current_Jobs
+                    WHERE id_machine==?;
+                """, (m_id, ))
+        else:
+            cursor.execute("""
+                    UPDATE Current_Jobs
+                    SET current_step=?
+                    WHERE id_machine==?;
+                """, (current_step + 1, m_id))
+    return Result_Success(success=True)
 
 
-@app.delete("/MESsy/{m_id}/job")
+@app.delete("/MESsy/{m_id}/job", response_model=Result_Success)
 def delete_job(m_id: int):
     cancel_job(m_id)
     return Result_Success(success=True)
 
 
-@app.post("/MESsy/{m_id}/error")
+@app.post("/MESsy/{m_id}/error", response_model=Result_Success)
 def post_error(m_id: int, error: Error_Message):
     print(
         f"Machine {m_id} got an critical error with message: {error.Message}")
@@ -240,7 +311,7 @@ def post_error(m_id: int, error: Error_Message):
     return Result_Success(success=True)
 
 
-@app.get("/uiapi/help")
+@app.get("/uiapi/help", response_model=List[Help_Object])
 def ui_get_help():
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
@@ -256,6 +327,19 @@ def ui_get_help():
     rows = map(lambda x: Help_Object(
         time=time_to_str(x[0]), worker=x[1], room=x[2], machine=x[3]), rows)
     return list(rows)
+
+
+@app.get("/uiapi/logout_all", response_model=Result_Success)
+def ui_logout_all():
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        cursor.execute("""
+            DELETE FROM Machine_login;
+        """)
+    return Result_Success(success=True)
 
 
 app.mount("/images", StaticFiles(directory="MESsy/images"), name="images")

@@ -64,13 +64,6 @@ CREATE TABLE Produced_Products(
     FOREIGN KEY(id_worker) REFERENCES Workers(id) ON DELETE CASCADE
 );
 
-CREATE TABLE Produced_Products_Steps(
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    id_produced_product INTEGER NOT NULL,
-    completion_time INTEGER NOT NULL,
-    FOREIGN KEY(id_produced_product) REFERENCES Produced_Products(id) ON DELETE CASCADE
-);
-
 CREATE TABLE Current_Jobs(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id_machine INTEGER NOT NULL UNIQUE,
@@ -93,4 +86,8 @@ CREATE TABLE Help(
     id_machine_login INTEGER NOT NULL,
     call_time INTEGER NOT NULL,
     FOREIGN KEY(id_machine_login) REFERENCES Machine_login(id) ON DELETE CASCADE
+);
+
+CREATE TABLE Lock_DB(
+    id INTEGER
 );
