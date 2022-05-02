@@ -1,6 +1,6 @@
-CREATE TABLE Workers(
+CREATE TABLE Users(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    worker_name TEXT NOT NULL
+    user_name TEXT NOT NULL
 );
 
 CREATE TABLE Rooms(
@@ -24,10 +24,10 @@ CREATE TABLE Machine(
 CREATE TABLE Machine_login(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id_room INTEGER NOT NULL,
-    id_current_worker INTEGER NOT NULL UNIQUE,
+    id_current_user INTEGER NOT NULL UNIQUE,
     id_machine INTEGER NOT NULL UNIQUE,
     FOREIGN KEY(id_room) REFERENCES Rooms(id) ON DELETE CASCADE,
-    FOREIGN KEY(id_current_worker) REFERENCES Workers(id) ON DELETE CASCADE,
+    FOREIGN KEY(id_current_user) REFERENCES Users(id) ON DELETE CASCADE,
     FOREIGN KEY(id_machine) REFERENCES Machine(id) ON DELETE CASCADE
 );
 
@@ -57,11 +57,11 @@ CREATE TABLE Product_Steps(
 CREATE TABLE Produced_Products(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id_product INTEGER NOT NULL,
-    id_worker INTEGER NOT NULL,
+    id_user INTEGER NOT NULL,
     serial_number_machine INTEGER NOT NULL,
     completion_time INTEGER NOT NULL,
     FOREIGN KEY(id_product) REFERENCES Products(id) ON DELETE CASCADE,
-    FOREIGN KEY(id_worker) REFERENCES Workers(id) ON DELETE CASCADE
+    FOREIGN KEY(id_user) REFERENCES Users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE Current_Jobs(

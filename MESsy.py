@@ -8,7 +8,7 @@ from typing import List
 
 
 class Help_Object(BaseModel):
-    worker: str
+    user: str
     room: str
     time: str
     machine: int
@@ -19,7 +19,7 @@ class Room(BaseModel):
     room: str
 
 
-class Worker(BaseModel):
+class User(BaseModel):
     id: int
     user: str
 
@@ -31,7 +31,7 @@ class Machine_Type(BaseModel):
 
 class Login_Info(BaseModel):
     Rooms: List[Room]
-    Users: List[Worker]
+    Users: List[User]
 
 
 class Login_Data(BaseModel):
@@ -130,11 +130,11 @@ def favicon():
 @app.get("/MESsy/logininfo", response_model=Login_Info)
 def get_logininfo():
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor_worker = conn.cursor()
-        cursor_worker.execute("""
-            SELECT id, worker_name from Workers;
+        cursor_user = conn.cursor()
+        cursor_user.execute("""
+            SELECT id, user_name from Users;
         """)
-        rows_worker = cursor_worker.fetchall()
+        rows_user = cursor_user.fetchall()
         cursor_room = conn.cursor()
         cursor_room.execute("""
             SELECT id, room_description from Rooms;
@@ -143,10 +143,10 @@ def get_logininfo():
     Rooms = []
     for i in rows_room:
         Rooms.append(Room(id=i[0], room=i[1]))
-    Workers = []
-    for i in rows_worker:
-        Workers.append(Worker(id=i[0], user=i[1]))
-    return Login_Info(Users=Workers, Rooms=Rooms)
+    Users = []
+    for i in rows_user:
+        Users.append(User(id=i[0], user=i[1]))
+    return Login_Info(Users=Users, Rooms=Rooms)
 
 
 @app.post("/MESsy/{m_id}/login", status_code=status.HTTP_201_CREATED, response_model=Result_Success)
@@ -164,7 +164,7 @@ def post_login(m_id: int, login_data: Login_Data, response: Response):
                 response.status_code = status.HTTP_400_BAD_REQUEST
                 return Result_Success(success=False, message="Serialnumber doesn't exist")
             cursor.execute("""
-                INSERT INTO Machine_login(id_room, id_current_worker, id_machine)
+                INSERT INTO Machine_login(id_room, id_current_user, id_machine)
                 VALUES (?, ?, ?);
             """, (login_data.Room, login_data.User, m_id))
     except sqlite3.IntegrityError:
@@ -261,7 +261,7 @@ def post_job(m_id: int, bestaetigung: Job_Bestaetigung, response: Response):
             PRAGMA foreign_keys = 1;
         """)
         cursor.execute("""
-            SELECT cj.current_step, cj.quantity, ml.id_current_worker FROM Current_Jobs cj
+            SELECT cj.current_step, cj.quantity, ml.id_current_user FROM Current_Jobs cj
             INNER JOIN Product_Steps ps ON ps.id_product==cj.id_product AND cj.current_step==ps.step_number
             INNER JOIN Machine_login ml ON ml.id==cj.id_machine
             WHERE cj.id_machine==? AND cj.id_product==? AND ps.id==?;
@@ -272,7 +272,7 @@ def post_job(m_id: int, bestaetigung: Job_Bestaetigung, response: Response):
             return Result_Success(success=False, message="No current Job with this Materialnumber and Jobnumber found")
         current_step = rows[0][0]
         quantity = rows[0][1]
-        worker = rows[0][2]
+        user = rows[0][2]
         cursor.execute("""
             SELECT * FROM Product_Steps
             WHERE id_product==? AND step_number==?;
@@ -280,9 +280,9 @@ def post_job(m_id: int, bestaetigung: Job_Bestaetigung, response: Response):
         rows = cursor.fetchall()
         if not rows:
             cursor.execute("""
-                INSERT INTO Produced_Products (id_product, id_worker, serial_number_machine, completion_time)
+                INSERT INTO Produced_Products (id_product, id_user, serial_number_machine, completion_time)
                 VALUES (?, ?, ?, ?);
-            """, (bestaetigung.Materialnumber, worker, m_id, time_ns() // 1_000_000_000))
+            """, (bestaetigung.Materialnumber, user, m_id, time_ns() // 1_000_000_000))
             if quantity:
                 cursor.execute("""
                     UPDATE Current_Jobs
@@ -325,14 +325,14 @@ def ui_get_help():
         cursor.execute("DELETE FROM Help WHERE call_time <= ?;",
                        ((time_ns() // 1_000_000_000) - 3_600,))
         cursor.execute("""
-            SELECT h.call_time, w.worker_name, r.room_description, m.id_machine FROM Help h 
+            SELECT h.call_time, u.user_name, r.room_description, m.id_machine FROM Help h 
             INNER JOIN Machine_login m ON h.id_machine_login==m.id
-            INNER JOIN Workers w ON m.id_current_worker==w.id
+            INNER JOIN Users u ON m.id_current_user==u.id
             INNER JOIN Rooms r ON m.id_room==r.id;
         """)
         rows = cursor.fetchall()
     rows = map(lambda x: Help_Object(
-        time=time_to_str(x[0]), worker=x[1], room=x[2], machine=x[3]), rows)
+        time=time_to_str(x[0]), user=x[1], room=x[2], machine=x[3]), rows)
     return list(rows)
 
 
