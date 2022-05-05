@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Help Report Monitor</title>
     <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
     <script>
         $(document).ready(function () {
 
@@ -15,7 +18,7 @@
                     let container = $("<div></div>")
                     for (let report in reports) {
                         container.append($("<p></p>")
-                            .text(`Worker ${reports[report]["worker"]} requested Help at time "${reports[report]["time"]}" in Room ${reports[report]["room"]} at machine ${reports[report]["machine"]}`));
+                            .text(`User ${reports[report]["user"]} requested Help at time "${reports[report]["time"]}" in Room ${reports[report]["room"]} at machine ${reports[report]["machine"]}`));
                     }
                     $("#helpreports").html(container);
                     window.setTimeout(fetchdata, 1000);
@@ -31,7 +34,7 @@
 </head>
 
 <body>
-    <div id="helpreports">
+    <div class="container" id="helpreports">
         Something went wrong.
     </div>
 </body>
