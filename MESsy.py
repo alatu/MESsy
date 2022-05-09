@@ -1,4 +1,3 @@
-from email.message import Message
 from fastapi import FastAPI, UploadFile, status, Response
 from fastapi.staticfiles import StaticFiles
 import sqlite3
@@ -210,7 +209,7 @@ def get_logininfo():
 
 @app.post("/MESsy/{m_id}/login", status_code=status.HTTP_201_CREATED)
 def post_login(m_id: int, login_data: Login_Data, response: Response):
-    message = None
+    message = "User logged in"
     try:
         with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
             cursor = conn.cursor()
@@ -227,7 +226,6 @@ def post_login(m_id: int, login_data: Login_Data, response: Response):
             """, (login_data.Room, login_data.User, m_id))
     except sqlite3.IntegrityError:
         response.status_code = status.HTTP_409_CONFLICT
-        success = False
         message = "Machine or User is already logged in"
     return Result_Message(message=message)
 
@@ -248,7 +246,6 @@ def delete_login(m_id: int, response: Response):
             WHERE ml.id_machine==?;
         """, (m_id, ))
         rows = cursor.fetchall()
-        print(rows)
         if rows:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return Result_Message(message="The User has a current Job. Please cancle or complete it before logging out!")

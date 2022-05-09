@@ -12,7 +12,6 @@
     <script>
         $(document).ready(function () {
 
-
             function fetchdata() {
                 $.get("/uiapi/help", function (reports, status) {
                     let container = $("<div></div>")
@@ -21,7 +20,7 @@
                             .text(`User ${reports[report]["user"]} requested Help at time "${reports[report]["time"]}" in Room ${reports[report]["room"]} at machine ${reports[report]["machine"]}`));
                     }
                     $("#helpreports").html(container);
-                    window.setTimeout(fetchdata, 1000);
+                    window.setTimeout(fetchdata, 5000);
                 })
                     .fail(function () {
                         alert("Server not reachable");
