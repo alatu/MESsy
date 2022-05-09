@@ -46,8 +46,6 @@ CREATE TABLE Product_Steps(
     additional_information TEXT,
     specified_time REAL NOT NULL,
     needed_materials TEXT NOT NULL,
-    url_images TEXT,
-    url_videos TEXT,
     FOREIGN KEY(id_product) REFERENCES Products(id) ON DELETE CASCADE
 );
 

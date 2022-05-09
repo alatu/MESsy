@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video upload Page</title>
+    <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#videoform").submit(function () {
+                let p_id = parseInt($("#id_product").val());
+                if (isNaN(p_id)) {
+                    return false;
+                }
+                $("#videoform").attr("action", "/uiapi/uploadvideos/" + p_id);
+                console.log(p_id);
+                return true;
+            });
+
+            $("#get_videos").click(function () {
+                $("#videocontainer").empty();
+                $.get("/uiapi/videos/" + parseInt($("#get_id_product").val()), function (data, status) {
+                    for (let i of data) {
+                        let container_div = $("<div></div>");
+                        let product_name = $("<p></p>").text(i);
+                        container_div.append(product_name);
+                        let product_video = $("<video></video>");
+                        product_video.attr("controls", true);
+                        let video_source = $("<source>");
+                        video_source.attr("src", "/videos/" + parseInt($("#get_id_product").val()) + "/" + i);
+                        product_video.append(video_source);
+                        product_video.attr("class", "mb-3");
+                        product_video.attr("class", "img-fluid mb-3");
+                        container_div.append(product_video);
+                        container_div.attr("style", "border:1px solid black;");
+                        container_div.attr("class", "mb-3");
+                        let delete_button = $("<button></button>");
+                        delete_button.attr("class", "btn btn-primary mb-3");
+                        delete_button.text("Delete Image");
+                        delete_button.click(function () {
+                            $.ajax({
+                                url: "/uiapi/videos/" + parseInt($("#get_id_product").val()) + "/" + i,
+                                type: "DELETE",
+                                success: function (result) {
+                                    alert(i + " got deleted!");
+                                }
+                            });
+                        });
+                        container_div.append($("<br>"));
+                        container_div.append(delete_button);
+                        $("#videocontainer").append(container_div);
+                    }
+                })
+                    .fail(function () {
+                        alert("An Error occured while fetching Videos");
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
+    <form id="videoform" action="" enctype="multipart/form-data" method="post" target="dummyframe" class="mb-3">
+        <div class="mb-3">
+            <label for="id_product" class="form-label">Product ID:</label>
+            <input id="id_product" class="form-control" type="text" placeholder="Product ID" required>
+        </div>
+        <div class="mb-3">
+            <label for="videos" class="form-label">Videos:</label>
+            <input id="videos" class="form-control" name="videos" type="file" multiple required>
+        </div>
+        <button class="btn btn-primary" id="submit_video">Submit</button>
+    </form>
+    <div class="mb-3">
+        <label for="get_id_product" class="form-label">Product ID for Videos:</label>
+        <input id="get_id_product" class="form-control" name="get_id_product" type="text" placeholder="Product ID">
+    </div>
+    <div class="mb-3">
+        <button class="btn btn-primary" id="get_videos">Get Videos</button>
+    </div>
+    <div class="mb-3" id="videocontainer"></div>
+</body>
+
+</html>

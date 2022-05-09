@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Job upload Page</title>
+    <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#submit_open_job").click(function () {
+                let open_job = { id_product: parseInt($("#new_id_product").val()), quantity: parseInt($("#new_quantity").val()) }
+                $.ajax({
+                    type: "POST",
+                    url: "/uiapi/open_job",
+                    data: JSON.stringify(open_job),
+                    dataType: "json",
+                    headers: {
+                        "accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    success: function () {
+                        alert("Open Job created!");
+                    }
+                });
+            });
+
+            $("#get_open_jobs").click(function () {
+                $("#open_jobcontainer").empty();
+                $.get("/uiapi/open_job/", function (data, status) {
+                    for (let i of data) {
+                        let container_div = $("<div></div>");
+                        container_div.attr("style", "border:1px solid black;");
+                        container_div.attr("class", "mb-3");
+                        let open_job_name = $("<p></p>").text("Product ID: " + i["id_product"] + " Quantity: " + i["quantity"]);
+                        container_div.append(open_job_name);
+                        let delete_button = $("<button></button>");
+                        delete_button.attr("class", "btn btn-primary mb-3");
+                        delete_button.text("Delete Open Job");
+                        delete_button.click(function () {
+                            $.ajax({
+                                url: "/uiapi/open_job/" + i["id"],
+                                type: "DELETE",
+                                success: function (result) {
+                                    alert("Open Job got deleted!");
+                                }
+                            });
+                        });
+                        container_div.append(delete_button);
+                        $("#open_jobcontainer").append(container_div);
+                    }
+                })
+                    .fail(function () {
+                        alert("An Error occured while fetching Open Jobs");
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body>
+
+    <div class="mb-3">
+        <label for="new_id_product" class="form-label">New Product ID:</label>
+        <input id="new_id_product" class="form-control" type="text" placeholder="Product ID">
+    </div>
+    <div class="mb-3">
+        <label for="new_quantity" class="form-label">New Quantity:</label>
+        <input id="new_quantity" class="form-control" type="text" placeholder="Quantity">
+    </div>
+    <button class="btn btn-primary mb-3" id="submit_open_job">Submit</button>
+    <div class="mb-3">
+        <button class="btn btn-primary" id="get_open_jobs">Get Open Jobs</button>
+    </div>
+    <div class="mb-3" id="open_jobcontainer"></div>
+</body>
+
+</html>

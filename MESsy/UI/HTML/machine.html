@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine upload Page</title>
+    <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#submit_ma").click(function () {
+                let ma = { id:parseInt($("#id_new_machine").val()), id_machine_type: parseInt($("#id_maty_new_machine").val()) }
+                $.ajax({
+                    type: "POST",
+                    url: "/uiapi/machine",
+                    data: JSON.stringify(ma),
+                    dataType: "json",
+                    headers: {
+                        "accept": "application/json",
+                        "Content-Type": "application/json"
+                    },
+                    success: function () {
+                        alert("Machine created!");
+                    }
+                });
+            });
+
+            $("#get_mas").click(function () {
+                $("#macontainer").empty();
+                $.get("/uiapi/machine/", function (data, status) {
+                    for (let i of data) {
+                        let container_div = $("<div></div>");
+                        container_div.attr("style", "border:1px solid black;");
+                        container_div.attr("class", "mb-3");
+                        let ma_id = $("<p></p>").text("ID Machine: " + i["id"] + " ID Machine Type:" + i["id_machine_type"]);
+                        container_div.append(ma_id);
+                        let delete_button = $("<button></button>");
+                        delete_button.attr("class", "btn btn-primary mb-3");
+                        delete_button.text("Delete Machine");
+                        delete_button.click(function () {
+                            $.ajax({
+                                url: "/uiapi/machine/" + i["id"],
+                                type: "DELETE",
+                                success: function (result) {
+                                    alert("Machine got deleted!");
+                                }
+                            });
+                        });
+                        container_div.append(delete_button);
+                        $("#macontainer").append(container_div);
+                    }
+                })
+                    .fail(function () {
+                        alert("An Error occured while fetching Machines");
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body>
+
+    <div class="mb-3">
+        <label for="id_new_machine" class="form-label">New Machine ID:</label>
+        <input id="id_new_machine" class="form-control" type="text" placeholder="Machine ID">
+    </div>
+    <div class="mb-3">
+        <label for="id_maty_new_machine" class="form-label">New Machine Type ID:</label>
+        <input id="id_maty_new_machine" class="form-control" type="text" placeholder="Machine Type ID">
+    </div>
+    <button class="btn btn-primary mb-3" id="submit_ma">Submit</button>
+    <div class="mb-3">
+        <button class="btn btn-primary" id="get_mas">Get Machines</button>
+    </div>
+    <div class="mb-3" id="macontainer"></div>
+</body>
+
+</html>

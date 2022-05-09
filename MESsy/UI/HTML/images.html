@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image upload Page</title>
+    <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#imageform").submit(function () {
+                let p_id = parseInt($("#id_product").val());
+                if (isNaN(p_id)) {
+                    return false;
+                }
+                $("#imageform").attr("action", "/uiapi/uploadimages/" + p_id);
+                console.log(p_id);
+                return true;
+            });
+
+            $("#get_images").click(function () {
+                $("#imagecontainer").empty();
+                $.get("/uiapi/images/" + parseInt($("#get_id_product").val()), function (data, status) {
+                    for (let i of data) {
+                        let container_div = $("<div></div>");
+                        let product_name = $("<p></p>").text(i);
+                        container_div.append(product_name);
+                        let product_image = $("<img>");
+                        product_image.attr("src", "/images/" + parseInt($("#get_id_product").val()) + "/" + i);
+                        product_image.attr("alt", i);
+                        product_image.attr("class", "mb-3");
+                        product_image.attr("class", "img-fluid mb-3");
+                        container_div.append(product_image);
+                        container_div.attr("style", "border:1px solid black;");
+                        container_div.attr("class", "mb-3");
+                        let delete_button = $("<button></button>");
+                        delete_button.attr("class", "btn btn-primary mb-3");
+                        delete_button.text("Delete Image");
+                        delete_button.click(function () {
+                            $.ajax({
+                                url: "/uiapi/images/" + parseInt($("#get_id_product").val()) + "/" + i,
+                                type: "DELETE",
+                                success: function (result) {
+                                    alert(i + " got deleted!");
+                                }
+                            });
+                        });
+                        container_div.append($("<br>"));
+                        container_div.append(delete_button);
+                        $("#imagecontainer").append(container_div);
+                    }
+                })
+                    .fail(function () {
+                        alert("An Error occured while fetching Images");
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
+    <form id="imageform" action="" enctype="multipart/form-data" method="post" target="dummyframe" class="mb-3">
+        <div class="mb-3">
+            <label for="id_product" class="form-label">Product ID:</label>
+            <input id="id_product" class="form-control" type="text" placeholder="Product ID" required>
+        </div>
+        <div class="mb-3">
+            <label for="images" class="form-label">Images:</label>
+            <input id="images" class="form-control" name="images" type="file" multiple required>
+        </div>
+        <button class="btn btn-primary" id="submit_image">Submit</button>
+    </form>
+    <div class="mb-3">
+        <label for="get_id_product" class="form-label">Product ID for Images:</label>
+        <input id="get_id_product" class="form-control" name="get_id_product" type="text" placeholder="Product ID">
+    </div>
+    <div class="mb-3">
+        <button class="btn btn-primary" id="get_images">Get Images</button>
+    </div>
+    <div class="mb-3" id="imagecontainer"></div>
+</body>
+
+</html>
