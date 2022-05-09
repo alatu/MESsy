@@ -130,3 +130,8 @@ dmypy.json
 
 # Own DB
 *.sqlite3
+
+*.mp4
+*.png
+*.jpg
+*.jpeg
