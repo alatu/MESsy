@@ -1,3 +1,4 @@
+import random
 from fastapi import FastAPI, UploadFile, status, Response
 from fastapi.staticfiles import StaticFiles
 import sqlite3
@@ -8,6 +9,7 @@ from starlette.responses import FileResponse
 import configparser
 import aiofiles
 import os
+import csv
 
 config: configparser.ConfigParser.read
 
@@ -44,17 +46,16 @@ class Step_Info(BaseModel):
     Job: int
     Step_Number: int
     Needed_Materials: str
-    Description: str
     Specified_Time: float
     Additional_Informations: str
+    Step_Description: str
 
 
 class Job_Infos(BaseModel):
     Materialnumber: int
     Product_Name: str
-    Needle_Size: int
-    Yarn_Count: int
     Quantity: int
+    Description: str
     URL_Pictures: list[str]
     URL_Videos: list[str]
     Steps: list[Step_Info]
@@ -92,6 +93,13 @@ class Open_Job(BaseModel):
     id: int | None
     id_product: int
     quantity: int
+
+
+class Product(BaseModel):
+    id: int
+    Machine_Type: str
+    Name: str
+    Description: str
 
 
 def time_to_str(time):
@@ -134,14 +142,14 @@ def get_job_from_db(m_id):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT p.id, p.product_name, p.needle_size, p.yarn_count, cj.quantity FROM Current_Jobs cj
+            SELECT p.id, p.product_name, cj.quantity, p.product_description FROM Current_Jobs cj
             INNER JOIN Machine_login ml ON cj.id_machine==ml.id
             INNER JOIN Products p ON cj.id_product==p.id
             WHERE ml.id_machine == ?;
         """, (m_id, ))
         rows_product = cursor.fetchall()
         cursor.execute("""
-            SELECT ps.id, ps.needed_materials, ps.step_description, ps.specified_time, ps.additional_information, ps.step_number FROM Current_Jobs cj
+            SELECT ps.id, ps.needed_materials, ps.specified_time, ps.additional_information, ps.step_number, ps.step_description FROM Current_Jobs cj
             INNER JOIN Machine_login ml ON cj.id_machine==ml.id
             INNER JOIN Products p ON cj.id_product==p.id
             INNER JOIN Product_Steps ps ON p.id==cj.id_product
@@ -280,10 +288,10 @@ def get_job(m_id: int, response: Response):
     if rows[0] and rows[1]:
         steps = []
         for i in rows[1]:
-            steps.append(Step_Info(Job=i[0], Needed_Materials=i[1], Description=i[2],
-                         Specified_Time=i[3], Additional_Informations=i[4], Step_Number=i[5]))
+            steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
+                         Specified_Time=i[2], Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
         return_value = Job_Infos(
-            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Needle_Size=rows[0][0][2], Yarn_Count=rows[0][0][3], Steps=steps, Quantity=rows[0][0][4], URL_Pictures=rows[2], URL_Videos=rows[3])
+            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3])
     else:
         with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
             cursor = conn.cursor()
@@ -314,10 +322,10 @@ def get_job(m_id: int, response: Response):
         rows = get_job_from_db(m_id)
         steps = []
         for i in rows[1]:
-            steps.append(Step_Info(Job=i[0], Needed_Materials=i[1], Description=i[2],
-                         Specified_Time=i[3], Additional_Informations=i[4], Step_Number=i[5]))
+            steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
+                         Specified_Time=i[2], Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
             return_value = Job_Infos(
-                Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Needle_Size=rows[0][0][2], Yarn_Count=rows[0][0][3], Steps=steps, Quantity=rows[0][0][4], URL_Pictures=rows[2], URL_Videos=rows[3])
+                Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3])
     return return_value
 
 
@@ -433,30 +441,41 @@ def ui_get_machine_type():
 
 
 @app.post("/uiapi/machinetype")
-def ui_post_machine_type(machine_type: Machine_Type):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO Machine_Type (machine_type)
-            VALUES (?);
-        """, (machine_type.machine_type, ))
-    return Result_Message(message="Machine Type created")
+def ui_post_machine_type(machine_type: Machine_Type, response: Response):
+    try:
+        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO Machine_Type (machine_type)
+                VALUES (?);
+            """, (machine_type.machine_type, ))
+        return Result_Message(message="Machine Type created")
+    except sqlite3.IntegrityError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="Machinetype already exists")
 
 
 @app.put("/uiapi/machinetype/{id}")
-def ui_put_machine_type(id: int, machine_type: Machine_Type):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE Machine_Type SET machine_type==? WHERE id==?;
-        """, (machine_type.machine_type, id))
-    return Result_Message(message="Machine Type updated")
+def ui_put_machine_type(id: int, machine_type: Machine_Type, response: Response):
+    try:
+        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE Machine_Type SET machine_type==? WHERE id==?;
+            """, (machine_type.machine_type, id))
+        return Result_Message(message="Machine Type updated")
+    except sqlite3.IntegrityError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="Machinetype already exists")
 
 
 @app.delete("/uiapi/machinetype/{id}")
 def ui_delete_machine_type(id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
         cursor.execute("""
             DELETE FROM Machine_Type WHERE id==?;
         """, (id, ))
@@ -493,6 +512,9 @@ def ui_delete_machine(id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        cursor.execute("""
             DELETE FROM Machine WHERE id==?;
         """, (id, ))
     return Result_Message(message="Machine deleted")
@@ -513,30 +535,41 @@ def ui_get_room():
 
 
 @app.post("/uiapi/room")
-def ui_post_room(room: Room):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO Rooms (room_description)
-            VALUES (?);
-        """, (room.room, ))
-    return Result_Message(message="Room created")
+def ui_post_room(room: Room, response: Response):
+    try:
+        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO Rooms (room_description)
+                VALUES (?);
+            """, (room.room, ))
+        return Result_Message(message="Room created")
+    except sqlite3.IntegrityError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="Room already exists")
 
 
 @app.put("/uiapi/room/{id}")
-def ui_put_room(id: int, room: Room):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE Rooms SET room_description==? WHERE id==?;
-        """, (room.room, id))
-    return Result_Message(message="Room updated")
+def ui_put_room(id: int, room: Room, response: Response):
+    try:
+        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE Rooms SET room_description==? WHERE id==?;
+            """, (room.room, id))
+        return Result_Message(message="Room updated")
+    except sqlite3.IntegrityError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="Room already exists")
 
 
 @app.delete("/uiapi/room/{id}")
 def ui_delete_room(id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
         cursor.execute("""
             DELETE FROM Rooms WHERE id==?;
         """, (id, ))
@@ -558,30 +591,41 @@ def ui_get_user():
 
 
 @app.post("/uiapi/user")
-def ui_post_user(user: User):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO Users (user_name)
-            VALUES (?);
-        """, (user.user, ))
-    return Result_Message(message="User created")
+def ui_post_user(user: User, response: Response):
+    try:
+        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO Users (user_name)
+                VALUES (?);
+            """, (user.user, ))
+        return Result_Message(message="User created")
+    except sqlite3.IntegrityError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="User already exists")
 
 
 @app.put("/uiapi/user/{id}")
-def ui_put_user(id: int, user: User):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE Users SET user_name==? WHERE id==?;
-        """, (user.user, id))
-    return Result_Message(message="User updated")
+def ui_put_user(id: int, user: User, response: Response):
+    try:
+        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE Users SET user_name==? WHERE id==?;
+            """, (user.user, id))
+        return Result_Message(message="User updated")
+    except sqlite3.IntegrityError:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="User already exists")
 
 
 @app.delete("/uiapi/user/{id}")
 def ui_delete_user(id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
         cursor.execute("""
             DELETE FROM Users WHERE id==?;
         """, (id, ))
@@ -617,6 +661,9 @@ def ui_post_open_job(open_job: Open_Job):
 def ui_delete_open_job(id: int):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
         cursor.execute("""
             DELETE FROM Open_Jobs WHERE id==?;
         """, (id, ))
@@ -693,6 +740,105 @@ def ui_get_images(p_id: int, name: str, response: Response):
     return Result_Message(message="File deleted")
 
 
+@app.get("/uiapi/create_report")
+def ui_get_create_reports(response: Response):
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.product_name, u.user_name, pp.serial_number_machine, pp.completion_time, pp.quantity FROM Produced_Products pp
+            INNER JOIN Users u ON u.id==pp.id_user
+            INNER JOIN Products p ON p.id==pp.id_product;
+        """)
+        rows = cursor.fetchall()
+        if not rows:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return Result_Message(message="No new Data")
+        with open(f"./MESsy/reports/{int(time())}_report.csv", "w") as fp:
+            writer = csv.writer(fp)
+            writer.writerow(
+                ["product", "username", "serialnumber machine", "completion time", "quantity"])
+            writer.writerows(rows)
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        cursor.execute("""
+            DELETE FROM Produced_Products;
+        """)
+    return Result_Message(message="report created")
+
+
+@app.get("/uiapi/reports")
+def ui_get_reports():
+    path = "./MESsy/reports"
+    return [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+
+
+@app.get("/uiapi/products")
+def ui_get_products():
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.id, mt.machine_type, p.product_name, p.product_description FROM Products p
+            INNER JOIN Machine_Type mt ON mt.id==p.id_machine_type;
+        """)
+        rows = cursor.fetchall()
+    return list(map(lambda x: Product(id=x[0], Machine_Type=x[1], Name=x[2], Description=x[3]), rows))
+
+
+@app.delete("/uiapi/products/{p_id}")
+def ui_delete_products(p_id: int):
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        cursor.execute("""
+            DELETE FROM Products WHERE id==?;
+        """, (p_id, ))
+
+
+@app.post("/uiapi/products")
+async def ui_post_products(product: UploadFile, response: Response):
+    random_filename = os.path.join(
+        "./MESsy/temp", str(random.randint(1, 100000)) + ".csv")
+    async with aiofiles.open(random_filename, "wb") as out_file:
+        content = await product.read()
+        await out_file.write(content)
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        with open(random_filename, "r", encoding="iso-8859-1") as csv_file:
+            csvreader = csv.reader(csv_file, delimiter=";")
+            try:
+                product_id = 0
+                for index, row in enumerate(csvreader):
+                    if index == 1:
+                        cursor.execute("""
+                            SELECT id from Machine_Type where machine_type==?;
+                        """, (row[2], ))
+                        rows_db = cursor.fetchall()
+                        cursor.execute("""
+                            INSERT INTO Products (id_machine_type, product_name, product_description)
+                            VALUES (?, ?, ?);
+                        """, (rows_db[0][0], row[0], row[1]))
+                        cursor.execute("""
+                            SELECT id FROM Products WHERE product_name==?;
+                        """, (row[0], ))
+                        rows_db = cursor.fetchall()
+                        product_id = rows_db[0][0]
+                    if index >= 3:
+                        cursor.execute("""
+                            INSERT INTO Product_Steps (id_product, step_number, step_description, needed_materials, specified_time, additional_information)
+                            VALUES (?, ?, ?, ?, ?, ?);
+                        """, (product_id, row[0], row[1], row[2], row[3], row[4]))
+            except sqlite3.IntegrityError:
+                response.status_code = status.HTTP_400_BAD_REQUEST
+            except IndexError:
+                response.status_code = status.HTTP_400_BAD_REQUEST
+    os.remove(random_filename)
+    return
+
+
+app.mount("/reports", StaticFiles(directory="MESsy/reports"), name="reports")
 app.mount("/images", StaticFiles(directory="MESsy/images"), name="images")
 app.mount("/videos", StaticFiles(directory="MESsy/videos"), name="videos")
 app.mount("/ui", StaticFiles(directory="MESsy/UI"), name="UI")

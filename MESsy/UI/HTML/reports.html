@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Page</title>
+    <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#get_reports").click(function () {
+                $("#reportcontainer").empty();
+                $.get("/uiapi/reports", function (data, status) {
+                    for (let i of data) {
+                        let container_div = $("<div></div>");
+                        container_div.attr("style", "border:1px solid black;");
+                        container_div.attr("class", "mb-3");
+                        let product_name = $("<p></p>").text(i);
+                        container_div.append(product_name);
+                        let download_a = $("<a></a>");
+                        download_a.attr("class", "btn btn-primary mb-3");
+                        download_a.text("Download report");
+                        download_a.attr("href", "/reports/" + i);
+                        download_a.attr("download", i);
+                        container_div.append(download_a);
+                        $("#reportcontainer").append(container_div);
+                    }
+                })
+                    .fail(function () {
+                        alert("An Error occured while fetching Reports");
+                    });
+            });
+            $("#new_report").click(function () {
+                $.get("/uiapi/create_report", function (data, status) {
+                    alert("SUCCESS: " + data["message"]);
+                })
+                    .fail(function (jqXHR, status, data) {
+                        alert("No new report has been created. Probably there is no new data.");
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <div class="mb-3 mt-3">
+        <button class="btn btn-primary" id="new_report">Create new Report</button>
+    </div>
+    <div class="mb-3">
+        <button class="btn btn-primary" id="get_reports">Get Reports</button>
+    </div>
+    <div class="mb-3" id="reportcontainer"></div>
+</body>
+
+</html>

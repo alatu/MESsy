@@ -35,7 +35,7 @@
                         let container_div = $("<div></div>");
                         container_div.attr("style", "border:1px solid black;");
                         container_div.attr("class", "mb-3");
-                        let room_name = $("<p></p>").text(i["room"]);
+                        let room_name = $("<p></p>").text(i["id"] + ": " + i["room"]);
                         container_div.append(room_name);
                         let delete_button = $("<button></button>");
                         delete_button.attr("class", "btn btn-primary mb-3");

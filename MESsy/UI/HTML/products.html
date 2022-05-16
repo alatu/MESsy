@@ -4,81 +4,46 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Machine Type upload Page</title>
+    <title>Image upload Page</title>
     <script src="/ui/JS/jquery-3.6.0.min.js"></script>
     <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
     <script src="/ui/JS/bootstrap.bundle.min.js"></script>
 
     <script>
         $(document).ready(function () {
-            $("#submit_maty").click(function () {
-                let maty = { machine_type: $("#id_product").val() }
-                $.ajax({
-                    type: "POST",
-                    url: "/uiapi/machinetype",
-                    data: JSON.stringify(maty),
-                    dataType: "json",
-                    headers: {
-                        "accept": "application/json",
-                        "Content-Type": "application/json"
-                    },
-                    success: function () {
-                        alert("Machine Type created!");
-                    }
-                });
-            });
-
-            $("#get_matys").click(function () {
-                $("#matycontainer").empty();
-                $.get("/uiapi/machinetype/", function (data, status) {
+            $("#get_product").click(function () {
+                $("#productcontainer").empty();
+                $.get("/uiapi/products", function (data, status) {
                     for (let i of data) {
                         let container_div = $("<div></div>");
+                        let product_id = $("<p></p>").text("id: " + i["id"]);
+                        let product_mt = $("<p></p>").text("Machine Type: " + i["Machine_Type"]);
+                        let product_nm = $("<p></p>").text("Name: " + i["Name"]);
+                        let product_dc = $("<p></p>").text("Description: " + i["Description"]);
+                        container_div.append(product_id);
+                        container_div.append(product_mt);
+                        container_div.append(product_nm);
+                        container_div.append(product_dc);
                         container_div.attr("style", "border:1px solid black;");
                         container_div.attr("class", "mb-3");
-                        let maty_name = $("<p></p>").text(i["machine_type"]);
-                        container_div.append(maty_name);
                         let delete_button = $("<button></button>");
                         delete_button.attr("class", "btn btn-primary mb-3");
-                        delete_button.text("Delete Machine Type");
+                        delete_button.text("Delete Product");
                         delete_button.click(function () {
                             $.ajax({
-                                url: "/uiapi/machinetype/" + i["id"],
+                                url: "/uiapi/products/" + i["id"],
                                 type: "DELETE",
                                 success: function (result) {
-                                    alert(i + " got deleted!");
+                                    alert(i["Name"] + " got deleted!");
                                 }
                             });
                         });
                         container_div.append(delete_button);
-                        let update_input = $("<input>");
-                        update_input.attr("class", "form-control mb-3")
-                        update_input.attr("type", "text");
-                        update_input.attr("placeholder", "New name for Machine Type");
-                        container_div.append(update_input);
-                        let update_button = $("<button></button>");
-                        update_button.attr("class", "btn btn-primary mb-3");
-                        update_button.text("Update Machine Type");
-                        update_button.click(function () {
-                            $.ajax({
-                                type: "PUT",
-                                url: "/uiapi/machinetype/" + i["id"],
-                                data: JSON.stringify({ machine_type: update_input.val() }),
-                                dataType: "json",
-                                headers: {
-                                    "accept": "application/json",
-                                    "Content-Type": "application/json"
-                                },
-                                success: function () {
-                                    alert("Machine Type updated!");
-                                }
-                            });
-                        });
-                        container_div.append(update_button);
-                        $("#matycontainer").append(container_div);
+                        $("#productcontainer").append(container_div);
                     }
                 })
                     .fail(function () {
-                        alert("An Error occured while fetching Videos");
+                        alert("An Error occured while fetching Images");
                     });
             });
         });
@@ -86,16 +51,18 @@
 </head>
 
 <body>
-
+    <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
+    <form id="productform" action="/uiapi/products" enctype="multipart/form-data" method="post" target="dummyframe" class="mb-3">
+        <div class="mb-3">
+            <label for="product" class="form-label">CSV File with Product-Infos:</label>
+            <input id="product" class="form-control" name="product" type="file" required>
+        </div>
+        <button class="btn btn-primary" id="submit_product">Submit</button>
+    </form>
     <div class="mb-3">
-        <label for="id_product" class="form-label">New Machine Type:</label>
-        <input id="id_product" class="form-control" type="text" placeholder="Machine Type Name">
+        <button class="btn btn-primary" id="get_product">Get Products</button>
     </div>
-    <button class="btn btn-primary mb-3" id="submit_maty">Submit</button>
-    <div class="mb-3">
-        <button class="btn btn-primary" id="get_matys">Get Machine Types</button>
-    </div>
-    <div class="mb-3" id="matycontainer"></div>
+    <div class="mb-3" id="productcontainer"></div>
 </body>
 
 </html>

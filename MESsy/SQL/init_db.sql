@@ -1,16 +1,16 @@
 CREATE TABLE Users(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    user_name TEXT NOT NULL
+    user_name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE Rooms(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    room_description TEXT
+    room_description TEXT UNIQUE
 );
 
 CREATE TABLE Machine_Type(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    machine_type TEXT NOT NULL
+    machine_type TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE Machine(
@@ -32,9 +32,8 @@ CREATE TABLE Machine_login(
 CREATE TABLE Products(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id_machine_type INTEGER NOT NULL,
-    product_name TEXT NOT NULL,
-    needle_size INTEGER,
-    yarn_count INTEGER,
+    product_name TEXT NOT NULL UNIQUE,
+    product_description TEXT NOT NULL,
     FOREIGN KEY(id_machine_type) REFERENCES Machine_Type(id) ON DELETE CASCADE
 );
 
@@ -42,10 +41,10 @@ CREATE TABLE Product_Steps(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id_product INTEGER NOT NULL,
     step_number INTEGER NOT NULL,
-    step_description TEXT NOT NULL,
     additional_information TEXT,
     specified_time REAL NOT NULL,
     needed_materials TEXT NOT NULL,
+    step_description TEXT NOT NULL,
     FOREIGN KEY(id_product) REFERENCES Products(id) ON DELETE CASCADE
 );
 
