@@ -34,6 +34,8 @@ CREATE TABLE Products(
     id_machine_type INTEGER NOT NULL,
     product_name TEXT NOT NULL UNIQUE,
     product_description TEXT NOT NULL,
+    next_product_name TEXT NOT NULL,
+    n_partitions INTEGER NOT NULL,
     FOREIGN KEY(id_machine_type) REFERENCES Machine_Type(id) ON DELETE CASCADE
 );
 

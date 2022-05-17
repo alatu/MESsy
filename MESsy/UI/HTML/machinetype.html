@@ -30,7 +30,7 @@
 
             $("#get_matys").click(function () {
                 $("#matycontainer").empty();
-                $.get("/uiapi/machinetype/", function (data, status) {
+                $.get("/uiapi/machinetype", function (data, status) {
                     for (let i of data) {
                         let container_div = $("<div></div>");
                         container_div.attr("style", "border:1px solid black;");
@@ -42,7 +42,7 @@
                         delete_button.text("Delete Machine Type");
                         delete_button.click(function () {
                             $.ajax({
-                                url: "/uiapi/machinetype/" + i["id"],
+                                url: "/uiapi/machinetype" + i["id"],
                                 type: "DELETE",
                                 success: function (result) {
                                     alert(i["machine_type"] + " got deleted!");
@@ -61,7 +61,7 @@
                         update_button.click(function () {
                             $.ajax({
                                 type: "PUT",
-                                url: "/uiapi/machinetype/" + i["id"],
+                                url: "/uiapi/machinetype" + i["id"],
                                 data: JSON.stringify({ machine_type: update_input.val() }),
                                 dataType: "json",
                                 headers: {

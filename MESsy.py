@@ -5,11 +5,13 @@ import sqlite3
 from time import time, asctime, localtime, daylight, tzname
 from datetime import date, datetime
 from pydantic import BaseModel
+from setuptools import PEP420PackageFinder
 from starlette.responses import FileResponse
 import configparser
 import aiofiles
 import os
 import csv
+import shutil
 
 config: configparser.ConfigParser.read
 
@@ -56,6 +58,7 @@ class Job_Infos(BaseModel):
     Product_Name: str
     Quantity: int
     Description: str
+    Split: int
     URL_Pictures: list[str]
     URL_Videos: list[str]
     Steps: list[Step_Info]
@@ -106,7 +109,7 @@ def time_to_str(time):
     return f"{asctime(localtime(time))} {tzname[daylight]}"
 
 
-def cancel_job(m_id: int, produced: int):
+def job_done(m_id: int, amount: int = None):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -116,33 +119,52 @@ def cancel_job(m_id: int, produced: int):
             PRAGMA foreign_keys = 1;
         """)
         cursor.execute("""
-            SELECT cj.id_product, cj.id, ml.id_current_user, cj.quantity FROM Current_Jobs cj
+            SELECT cj.id_product, cj.quantity, ml.id_current_user, cj.id FROM Current_Jobs cj
             INNER JOIN Machine_login ml ON ml.id==cj.id_machine
-            WHERE ml.id_machine == ?;
+            WHERE ml.id_machine==?;
         """, (m_id, ))
         rows = cursor.fetchall()
         if not rows:
-            return
-        if (rows[0][3] - produced) < 0:
-            return
+            return False
+        quantity = amount if amount is not None else rows[0][1]
         cursor.execute("""
-            INSERT INTO Open_Jobs(id_product, quantity) VALUES(?, ?);
-        """, (rows[0][0], rows[0][3] - produced))
+            INSERT INTO Produced_Products (id_product, id_user, serial_number_machine, completion_time, quantity)
+            VALUES (?, ?, ?, ?, ?);
+        """, (rows[0][0], rows[0][2], m_id, int(time()), quantity))
         cursor.execute("""
-            DELETE FROM Current_Jobs WHERE id == ?;
-        """, (rows[0][1], ))
-        if produced > 0:
+            SELECT next_product_name, n_partitions FROM Products WHERE id==?;
+        """, (rows[0][0], ))
+        rows_next = cursor.fetchall()
+        if rows_next[0][0]:
             cursor.execute("""
-                INSERT INTO Produced_Products (id_product, id_user, serial_number_machine, completion_time, quantity)
-                VALUES (?, ?, ?, ?, ?);
-            """, (rows[0][0], rows[0][2], m_id, int(time()), produced))
+                SELECT id FROM Products WHERE product_name==?;
+            """, (rows_next[0][0], ))
+            rows_new = cursor.fetchall()
+            for i in range(0, quantity - rows_next[0][1], rows_next[0][1]):
+                cursor.execute("""
+                    INSERT INTO Open_Jobs (id_product, quantity)
+                    VALUES (?, ?);
+                """, (rows_new[0][0], rows_next[0][1]))
+            cursor.execute("""
+                INSERT INTO Open_Jobs (id_product, quantity)
+                VALUES (?, ?);
+            """, (rows_new[0][0], j if (j := (quantity % rows_next[0][1])) != 0 else rows_next[0][1]))
+        if amount is not None:
+            cursor.execute("""
+                INSERT INTO Open_Jobs (id_product, quantity)
+                VALUES (?, ?);
+            """, (rows[0][0], rows[0][1] - amount))
+        cursor.execute("""
+            DELETE FROM Current_Jobs WHERE id==?;
+        """, (rows[0][3], ))
+    return True
 
 
 def get_job_from_db(m_id):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT p.id, p.product_name, cj.quantity, p.product_description FROM Current_Jobs cj
+            SELECT p.id, p.product_name, cj.quantity, p.product_description, p.n_partitions FROM Current_Jobs cj
             INNER JOIN Machine_login ml ON cj.id_machine==ml.id
             INNER JOIN Products p ON cj.id_product==p.id
             WHERE ml.id_machine == ?;
@@ -289,9 +311,9 @@ def get_job(m_id: int, response: Response):
         steps = []
         for i in rows[1]:
             steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                         Specified_Time=i[2], Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+                         Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
         return_value = Job_Infos(
-            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3])
+            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
     else:
         with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
             cursor = conn.cursor()
@@ -323,44 +345,23 @@ def get_job(m_id: int, response: Response):
         steps = []
         for i in rows[1]:
             steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                         Specified_Time=i[2], Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
-            return_value = Job_Infos(
-                Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3])
+                         Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+        return_value = Job_Infos(
+            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
     return return_value
 
 
 @app.post("/MESsy/{m_id}/job")
 def post_job(m_id: int, response: Response):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            DELETE FROM Lock_DB;
-        """)  # Lock DB to prevent race conditions
-        cursor.execute("""
-            PRAGMA foreign_keys = 1;
-        """)
-        cursor.execute("""
-            SELECT cj.id_product, cj.quantity, ml.id_current_user, cj.id FROM Current_Jobs cj
-            INNER JOIN Machine_login ml ON ml.id==cj.id_machine
-            WHERE ml.id_machine==?;
-        """, (m_id, ))
-        rows = cursor.fetchall()
-        if not rows:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return Result_Message(message="No active Job found")
-        cursor.execute("""
-            INSERT INTO Produced_Products (id_product, id_user, serial_number_machine, completion_time, quantity)
-            VALUES (?, ?, ?, ?, ?);
-        """, (rows[0][0], rows[0][2], m_id, int(time()), rows[0][1]))
-        cursor.execute("""
-            DELETE FROM Current_Jobs WHERE id==?;
-        """, (rows[0][3], ))
+    if not job_done(m_id):
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="No active Job found")
     return Result_Message(message="Job approved")
 
 
 @app.post("/MESsy/{m_id}/cancel_job")
 def post_cancel_job(m_id: int, cancle_job: Cancle_Job):
-    cancel_job(m_id, cancle_job.Produced)
+    job_done(m_id, cancle_job.Produced)
     return Result_Message(message="Job canceled")
 
 
@@ -369,7 +370,7 @@ def post_error(m_id: int, error: Error_Message):
     print(
         f"Machine {m_id} got an critical error with message: {error.Message}")
     if error.Interrupted:
-        cancel_job(m_id, error.Produced)
+        job_done(m_id, error.Produced)
     return Result_Message(message="error reported")
 
 
@@ -787,6 +788,8 @@ def ui_get_products():
 
 @app.delete("/uiapi/products/{p_id}")
 def ui_delete_products(p_id: int):
+    path = os.path.join("./MESsy/videos", str(p_id))
+    shutil.rmtree(path)
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -817,9 +820,9 @@ async def ui_post_products(product: UploadFile, response: Response):
                         """, (row[2], ))
                         rows_db = cursor.fetchall()
                         cursor.execute("""
-                            INSERT INTO Products (id_machine_type, product_name, product_description)
-                            VALUES (?, ?, ?);
-                        """, (rows_db[0][0], row[0], row[1]))
+                            INSERT INTO Products (id_machine_type, product_name, product_description, next_product_name, n_partitions)
+                            VALUES (?, ?, ?, ?, ?);
+                        """, (rows_db[0][0], row[0], row[1], row[3], int(row[4])))
                         cursor.execute("""
                             SELECT id FROM Products WHERE product_name==?;
                         """, (row[0], ))
@@ -830,6 +833,8 @@ async def ui_post_products(product: UploadFile, response: Response):
                             INSERT INTO Product_Steps (id_product, step_number, step_description, needed_materials, specified_time, additional_information)
                             VALUES (?, ?, ?, ?, ?, ?);
                         """, (product_id, row[0], row[1], row[2], row[3], row[4]))
+                path = os.path.join("./MESsy/videos", str(product_id))
+                os.mkdir(path)
             except sqlite3.IntegrityError:
                 response.status_code = status.HTTP_400_BAD_REQUEST
             except IndexError:

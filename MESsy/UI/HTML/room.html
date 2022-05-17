@@ -30,7 +30,7 @@
 
             $("#get_rooms").click(function () {
                 $("#roomcontainer").empty();
-                $.get("/uiapi/room/", function (data, status) {
+                $.get("/uiapi/room", function (data, status) {
                     for (let i of data) {
                         let container_div = $("<div></div>");
                         container_div.attr("style", "border:1px solid black;");
