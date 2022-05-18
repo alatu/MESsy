@@ -796,6 +796,8 @@ def ui_get_products():
 def ui_delete_products(p_id: int):
     path = os.path.join("./MESsy/videos", str(p_id))
     shutil.rmtree(path)
+    path = os.path.join("./MESsy/images", str(p_id))
+    shutil.rmtree(path)
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -840,6 +842,12 @@ async def ui_post_products(product: UploadFile, response: Response):
                             VALUES (?, ?, ?, ?, ?, ?);
                         """, (product_id, row[0], row[1], row[2], row[3], row[4]))
                 path = os.path.join("./MESsy/videos", str(product_id))
+                if os.path.exists(path):
+                    shutil.rmtree(path)
+                os.mkdir(path)
+                path = os.path.join("./MESsy/images", str(product_id))
+                if os.path.exists(path):
+                    shutil.rmtree(path)
                 os.mkdir(path)
             except sqlite3.IntegrityError:
                 response.status_code = status.HTTP_400_BAD_REQUEST
