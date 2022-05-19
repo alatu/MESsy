@@ -155,7 +155,7 @@ def job_done(m_id: int, amount: int = None):
             WHERE ml.id_machine==?;
         """, (m_id, ))
         rows = cursor.fetchall()
-        if not rows:
+        if not rows or (amount is not None and amount > rows[0][1]):
             return False
         quantity = amount if amount is not None else rows[0][1]
         cursor.execute("""
@@ -410,7 +410,7 @@ def get_stats(m_id: int, response: Response):
             WHERE pp.id_user==? AND pp.completion_time>=?;
         """, (rows[0][0], int(datetime.combine(date.today(), datetime.min.time()).timestamp())))
         rows = cursor.fetchall()
-    complete_time = sum(map(lambda x: x[0] * x[1], rows))
+    complete_time = sum(map(lambda x: float(x[0] if x[0] else 0) * x[1], rows))
     return Stats(ratio_done=round(complete_time / float(config["Work"]["daily_work_pensum"]), 3))
 
 
@@ -874,7 +874,7 @@ async def ui_post_products(product: UploadFile, response: Response):
                         cursor.execute("""
                             INSERT INTO Product_Steps (id_product, step_number, step_description, needed_materials, specified_time, additional_information)
                             VALUES (?, ?, ?, ?, ?, ?);
-                        """, (product_id, row[0], row[1], row[2], row[3], row[4]))
+                        """, (product_id, row[0], row[1], row[2], float(row[3]), row[4]))
                 path = os.path.join("./MESsy/videos", str(product_id))
                 if os.path.exists(path):
                     shutil.rmtree(path)
@@ -886,6 +886,8 @@ async def ui_post_products(product: UploadFile, response: Response):
             except sqlite3.IntegrityError:
                 response.status_code = status.HTTP_400_BAD_REQUEST
             except IndexError:
+                response.status_code = status.HTTP_400_BAD_REQUEST
+            except ValueError:
                 response.status_code = status.HTTP_400_BAD_REQUEST
     os.remove(random_filename)
     return
