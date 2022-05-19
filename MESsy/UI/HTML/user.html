@@ -25,7 +25,10 @@
                     success: function () {
                         alert("User created!");
                     }
-                });
+                })
+                    .fail(function () {
+                        alert("Something went wrong");
+                    });
             });
 
             $("#get_users").click(function () {
@@ -47,7 +50,10 @@
                                 success: function (result) {
                                     alert("User got deleted!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(delete_button);
                         let update_input = $("<input>");
@@ -71,7 +77,10 @@
                                 success: function () {
                                     alert("User updated!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(update_button);
                         $("#usercontainer").append(container_div);

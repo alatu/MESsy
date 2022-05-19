@@ -12,7 +12,7 @@
     <script>
         $(document).ready(function () {
             $("#submit_ma").click(function () {
-                let ma = { id:parseInt($("#id_new_machine").val()), id_machine_type: parseInt($("#id_maty_new_machine").val()) }
+                let ma = { id: parseInt($("#id_new_machine").val()), id_machine_type: parseInt($("#id_maty_new_machine").val()) }
                 $.ajax({
                     type: "POST",
                     url: "/uiapi/machine",
@@ -25,7 +25,10 @@
                     success: function () {
                         alert("Machine created!");
                     }
-                });
+                })
+                    .fail(function () {
+                        alert("Something went wrong");
+                    });
             });
 
             $("#get_mas").click(function () {
@@ -47,7 +50,10 @@
                                 success: function (result) {
                                     alert("Machine got deleted!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(delete_button);
                         $("#macontainer").append(container_div);

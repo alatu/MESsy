@@ -25,7 +25,10 @@
                     success: function () {
                         alert("Open Job created!");
                     }
-                });
+                })
+                    .fail(function () {
+                        alert("Something went wrong");
+                    });
             });
 
             $("#get_open_jobs").click(function () {
@@ -47,7 +50,10 @@
                                 success: function (result) {
                                     alert("Open Job got deleted!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(delete_button);
                         $("#open_jobcontainer").append(container_div);

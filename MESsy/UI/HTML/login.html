@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login management Page</title>
+    <script src="/ui/JS/jquery-3.6.0.min.js"></script>
+    <link href="/ui/CSS/bootstrap.min.css" rel="stylesheet">
+    <script src="/ui/JS/bootstrap.bundle.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#logout_all").click(function () {
+                $.get("/uiapi/logout_all", function (data, status) {
+                    alert("Logged out all users!");
+                })
+                    .fail(function () {
+                        alert("Something went wrong!");
+                    });
+            });
+
+            $("#get_logins").click(function () {
+                $("#logincontainer").empty();
+                $.get("/uiapi/login", function (data, status) {
+                    for (let i of data) {
+                        let container_div = $("<div></div>");
+                        container_div.attr("style", "border:1px solid black;");
+                        container_div.attr("class", "mb-3");
+                        let login_name = $("<p></p>").text(i["serialnumber"]);
+                        container_div.append(login_name);
+                        let delete_button = $("<button></button>");
+                        delete_button.attr("class", "btn btn-primary mb-3");
+                        delete_button.text("Logout User");
+                        delete_button.click(function () {
+                            $.ajax({
+                                url: "/uiapi/login/" + i["serialnumber"],
+                                type: "DELETE",
+                                success: function (result) {
+                                    alert("User got logged out!");
+                                },
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
+                        });
+                        container_div.append(delete_button);
+                        $("#logincontainer").append(container_div);
+                    }
+                })
+                    .fail(function () {
+                        alert("An Error occured while fetching Users");
+                    });
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <button class="btn btn-primary mb-3 mt-3" id="logout_all">Logout all users</button>
+    <br>
+    <button class="btn btn-primary mb-3" id="get_logins">Get all logged in users</button>
+    <div class="mb-3" id="logincontainer"></div>
+</body>
+
+</html>

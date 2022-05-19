@@ -92,6 +92,10 @@ class Machine(BaseModel):
     id_machine_type: int
 
 
+class Logins(BaseModel):
+    serialnumber: int
+
+
 class Open_Job(BaseModel):
     id: int | None
     id_product: int
@@ -103,6 +107,30 @@ class Product(BaseModel):
     Machine_Type: str
     Name: str
     Description: str
+
+
+def logout_user(m_id: int, response: Response):
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        cursor.execute("""
+            DELETE FROM Lock_DB;
+        """)  # Lock DB to prevent race conditions
+        cursor.execute("""
+            SELECT * FROM Current_Jobs cj
+            INNER JOIN Machine_login ml ON ml.id==cj.id_machine
+            WHERE ml.id_machine==?;
+        """, (m_id, ))
+        rows = cursor.fetchall()
+        if rows:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return Result_Message(message="The User has a current Job. Please cancle or complete it before logging out!")
+        cursor.execute("""
+            DELETE FROM Machine_login WHERE id_machine == ?;
+        """, (m_id, ))
+    return Result_Message(message="Logged out")
 
 
 def time_to_str(time):
@@ -266,27 +294,7 @@ def post_login(m_id: int, login_data: Login_Data, response: Response):
 
 @app.delete("/MESsy/{m_id}/login")
 def delete_login(m_id: int, response: Response):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            PRAGMA foreign_keys = 1;
-        """)
-        cursor.execute("""
-            DELETE FROM Lock_DB;
-        """)  # Lock DB to prevent race conditions
-        cursor.execute("""
-            SELECT * FROM Current_Jobs cj
-            INNER JOIN Machine_login ml ON ml.id==cj.id_machine
-            WHERE ml.id_machine==?;
-        """, (m_id, ))
-        rows = cursor.fetchall()
-        if rows:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return Result_Message(message="The User has a current Job. Please cancle or complete it before logging out!")
-        cursor.execute("""
-            DELETE FROM Machine_login WHERE id_machine == ?;
-        """, (m_id, ))
-    return Result_Message(message="Logged out")
+    return logout_user(m_id, response)
 
 
 @app.get("/MESsy/{m_id}/help")
@@ -323,7 +331,7 @@ def get_job(m_id: int, response: Response):
             steps = []
             for i in rows[1]:
                 steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                            Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+                                       Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
             return_value = Job_Infos(
                 Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
         else:
@@ -349,7 +357,7 @@ def get_job(m_id: int, response: Response):
             steps = []
             for i in rows[1]:
                 steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                            Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+                                       Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
             return_value = Job_Infos(
                 Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
     return return_value
@@ -428,7 +436,26 @@ def ui_logout_all():
         cursor.execute("""
             DELETE FROM Machine_login;
         """)
-    return Result_Message(message="Logged out all users")
+    return Result_Message(message="Logged out all machines")
+
+
+@app.get("/uiapi/login")
+def ui_get_login():
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id_machine FROM Machine_login;
+        """)
+        rows = cursor.fetchall()
+    result = []
+    for i in rows:
+        result.append(Logins(serialnumber=i[0]))
+    return result
+
+
+@app.delete("/uiapi/login/{m_id}")
+def ui_delete_login(m_id: int, response: Response):
+    return logout_user(m_id, response)
 
 
 @app.get("/uiapi/machinetype")
@@ -466,7 +493,7 @@ def ui_put_machine_type(id: int, machine_type: Machine_Type, response: Response)
         with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                UPDATE Machine_Type SET machine_type==? WHERE id==?;
+                UPDATE Machine_Type SET machine_type=? WHERE id==?;
             """, (machine_type.machine_type, id))
         return Result_Message(message="Machine Type updated")
     except sqlite3.IntegrityError:

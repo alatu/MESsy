@@ -25,7 +25,10 @@
                     success: function () {
                         alert("Machine Type created!");
                     }
-                });
+                })
+                    .fail(function () {
+                        alert("Something went wrong");
+                    });
             });
 
             $("#get_matys").click(function () {
@@ -47,7 +50,10 @@
                                 success: function (result) {
                                     alert(i["machine_type"] + " got deleted!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(delete_button);
                         let update_input = $("<input>");
@@ -61,7 +67,7 @@
                         update_button.click(function () {
                             $.ajax({
                                 type: "PUT",
-                                url: "/uiapi/machinetype" + i["id"],
+                                url: "/uiapi/machinetype/" + i["id"],
                                 data: JSON.stringify({ machine_type: update_input.val() }),
                                 dataType: "json",
                                 headers: {
@@ -71,7 +77,10 @@
                                 success: function () {
                                     alert("Machine Type updated!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(update_button);
                         $("#matycontainer").append(container_div);

@@ -46,7 +46,10 @@
                                 success: function (result) {
                                     alert(i + " got deleted!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append($("<br>"));
                         container_div.append(delete_button);

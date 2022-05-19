@@ -36,7 +36,10 @@
                                 success: function (result) {
                                     alert(i["Name"] + " got deleted!");
                                 }
-                            });
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
                         });
                         container_div.append(delete_button);
                         $("#productcontainer").append(container_div);
@@ -52,7 +55,8 @@
 
 <body>
     <iframe name="dummyframe" id="dummyframe" style="display: none;"></iframe>
-    <form id="productform" action="/uiapi/products" enctype="multipart/form-data" method="post" target="dummyframe" class="mb-3">
+    <form id="productform" action="/uiapi/products" enctype="multipart/form-data" method="post" target="dummyframe"
+        class="mb-3">
         <div class="mb-3">
             <label for="product" class="form-label">CSV File with Product-Infos:</label>
             <input id="product" class="form-control" name="product" type="file" required>
