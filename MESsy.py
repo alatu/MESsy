@@ -138,6 +138,8 @@ def time_to_str(time):
 
 
 def job_done(m_id: int, amount: int = None):
+    if amount is not None and amount < 0:
+        return False
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -372,17 +374,20 @@ def post_job(m_id: int, response: Response):
 
 
 @app.post("/MESsy/{m_id}/cancel_job")
-def post_cancel_job(m_id: int, cancle_job: Cancle_Job):
-    job_done(m_id, cancle_job.Produced)
-    return Result_Message(message="Job canceled")
+def post_cancel_job(m_id: int, cancle_job: Cancle_Job, response: Response):
+    if not job_done(m_id, cancle_job.Produced):
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="Couldn't cancle Job")
+    return Result_Message(message="Job cancled")
 
 
 @app.post("/MESsy/{m_id}/error")
-def post_error(m_id: int, error: Error_Message):
+def post_error(m_id: int, error: Error_Message, response: Response):
     print(
         f"Machine {m_id} got an critical error with message: {error.Message}")
-    if error.Interrupted:
-        job_done(m_id, error.Produced)
+    if error.Interrupted and not job_done(m_id, error.Produced):
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return Result_Message(message="Couldn't cancle Job")
     return Result_Message(message="error reported")
 
 
