@@ -109,7 +109,7 @@ class Product(BaseModel):
     Description: str
 
 
-def logout_user(m_id: int, response: Response):
+def logout_user(m_id: int, response: Response = None):
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -124,8 +124,9 @@ def logout_user(m_id: int, response: Response):
             WHERE ml.id_machine==?;
         """, (m_id, ))
         rows = cursor.fetchall()
-        if rows:
+        if response is not None and rows:
             response.status_code = status.HTTP_400_BAD_REQUEST
+        if rows:
             return Result_Message(message="The User has a current Job. Please cancle or complete it before logging out!")
         cursor.execute("""
             DELETE FROM Machine_login WHERE id_machine == ?;
@@ -439,9 +440,12 @@ def ui_logout_all():
             PRAGMA foreign_keys = 1;
         """)
         cursor.execute("""
-            DELETE FROM Machine_login;
+            SELECT id_machine FROM Machine_login;
         """)
-    return Result_Message(message="Logged out all machines")
+        rows = cursor.fetchall()
+    for i in rows:
+        logout_user(i[0])
+    return Result_Message(message="Logged out all machines without active Jobs")
 
 
 @app.get("/uiapi/login")

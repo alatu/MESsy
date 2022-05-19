@@ -45,6 +45,33 @@
                                 });
                         });
                         container_div.append(delete_button);
+                        let update_input = $("<input>");
+                        update_input.attr("class", "form-control mb-3")
+                        update_input.attr("type", "text");
+                        update_input.attr("placeholder", "Number of done Products");
+                        container_div.append(update_input);
+                        let update_button = $("<button></button>");
+                        update_button.attr("class", "btn btn-primary mb-3");
+                        update_button.text("Cancle Job");
+                        update_button.click(function () {
+                            $.ajax({
+                                type: "POST",
+                                url: "/MESsy/" + i["serialnumber"] + "/cancel_job",
+                                data: JSON.stringify({ Produced: parseInt(update_input.val()) }),
+                                dataType: "json",
+                                headers: {
+                                    "accept": "application/json",
+                                    "Content-Type": "application/json"
+                                },
+                                success: function () {
+                                    alert("Job cancled!");
+                                }
+                            })
+                                .fail(function () {
+                                    alert("Something went wrong");
+                                });
+                        });
+                        container_div.append(update_button);
                         $("#logincontainer").append(container_div);
                     }
                 })
