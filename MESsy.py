@@ -166,35 +166,33 @@ def job_done(m_id: int, amount: int = None):
     return True
 
 
-def get_job_from_db(m_id):
-    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT p.id, p.product_name, cj.quantity, p.product_description, p.n_partitions FROM Current_Jobs cj
-            INNER JOIN Machine_login ml ON cj.id_machine==ml.id
-            INNER JOIN Products p ON cj.id_product==p.id
-            WHERE ml.id_machine == ?;
-        """, (m_id, ))
-        rows_product = cursor.fetchall()
-        cursor.execute("""
-            SELECT ps.id, ps.needed_materials, ps.specified_time, ps.additional_information, ps.step_number, ps.step_description FROM Current_Jobs cj
-            INNER JOIN Machine_login ml ON cj.id_machine==ml.id
-            INNER JOIN Products p ON cj.id_product==p.id
-            INNER JOIN Product_Steps ps ON p.id==cj.id_product
-            WHERE ml.id_machine == ?;
-        """, (m_id, ))
-        rows_steps = cursor.fetchall()
-        images = []
-        videos = []
-        if rows_product and rows_steps:
-            path = os.path.join("./MESsy/images", str(rows_product[0][0]))
-            if os.path.exists(path):
-                images = [
-                    "/images/" + str(rows_product[0][0]) + "/" + f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
-            path = os.path.join("./MESsy/videos", str(rows_product[0][0]))
-            if os.path.exists(path):
-                videos = [
-                    "/videos/" + str(rows_product[0][0]) + "/" + f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+def get_job_from_db(m_id, cursor):
+    cursor.execute("""
+        SELECT p.id, p.product_name, cj.quantity, p.product_description, p.n_partitions FROM Current_Jobs cj
+        INNER JOIN Machine_login ml ON cj.id_machine==ml.id
+        INNER JOIN Products p ON cj.id_product==p.id
+        WHERE ml.id_machine == ?;
+    """, (m_id, ))
+    rows_product = cursor.fetchall()
+    cursor.execute("""
+        SELECT ps.id, ps.needed_materials, ps.specified_time, ps.additional_information, ps.step_number, ps.step_description FROM Current_Jobs cj
+        INNER JOIN Machine_login ml ON cj.id_machine==ml.id
+        INNER JOIN Products p ON cj.id_product==p.id
+        INNER JOIN Product_Steps ps ON p.id==cj.id_product
+        WHERE ml.id_machine == ?;
+    """, (m_id, ))
+    rows_steps = cursor.fetchall()
+    images = []
+    videos = []
+    if rows_product and rows_steps:
+        path = os.path.join("./MESsy/images", str(rows_product[0][0]))
+        if os.path.exists(path):
+            images = [
+                "/images/" + str(rows_product[0][0]) + "/" + f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+        path = os.path.join("./MESsy/videos", str(rows_product[0][0]))
+        if os.path.exists(path):
+            videos = [
+                "/videos/" + str(rows_product[0][0]) + "/" + f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
     return rows_product, rows_steps, images, videos
 
 
@@ -312,23 +310,23 @@ def get_help(m_id: int, response: Response):
 
 @app.get("/MESsy/{m_id}/job")
 def get_job(m_id: int, response: Response):
-    rows = get_job_from_db(m_id)
-    if rows[0] and rows[1]:
-        steps = []
-        for i in rows[1]:
-            steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                         Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
-        return_value = Job_Infos(
-            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
-    else:
-        with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                DELETE FROM Lock_DB;
-            """)  # Lock DB to prevent race conditions
-            cursor.execute("""
-                PRAGMA foreign_keys = 1;
-            """)
+    with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM Lock_DB;
+        """)  # Lock DB to prevent race conditions
+        cursor.execute("""
+            PRAGMA foreign_keys = 1;
+        """)
+        rows = get_job_from_db(m_id, cursor)
+        if rows[0] and rows[1]:
+            steps = []
+            for i in rows[1]:
+                steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
+                            Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+            return_value = Job_Infos(
+                Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
+        else:
             cursor.execute("""
                 SELECT o.id, ml.id, p.id, o.quantity FROM Open_Jobs o
                 INNER JOIN Machine_login ml ON ml.id_machine==?
@@ -347,13 +345,13 @@ def get_job(m_id: int, response: Response):
             cursor.execute("""
                 DELETE FROM Open_Jobs WHERE id==?;
             """, (rows_possible_jobs[-1][0], ))
-        rows = get_job_from_db(m_id)
-        steps = []
-        for i in rows[1]:
-            steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                         Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
-        return_value = Job_Infos(
-            Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
+            rows = get_job_from_db(m_id, cursor)
+            steps = []
+            for i in rows[1]:
+                steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
+                            Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+            return_value = Job_Infos(
+                Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
     return return_value
 
 
@@ -777,7 +775,7 @@ def ui_get_create_reports(response: Response):
 @app.get("/uiapi/reports")
 def ui_get_reports():
     path = "./MESsy/reports"
-    return [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+    return [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and (os.path.splitext(f)[1].lower() == ".csv")]
 
 
 @app.get("/uiapi/products")
