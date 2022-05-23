@@ -38,8 +38,12 @@
                         let container_div = $("<div></div>");
                         container_div.attr("style", "border:1px solid black;");
                         container_div.attr("class", "mb-3");
-                        let ma_id = $("<p></p>").text("ID Machine: " + i["id"] + " ID Machine Type:" + i["id_machine_type"]);
+                        let ma_id = $("<p></p>").text("ID Machine: " + i["id"]);
+                        let maty_id = $("<p></p>").text("ID Machine Type: " + i["id_machine_type"]);
+                        let maty = $("<p></p>").text("Machine Type: " + i["machine_type"]);
                         container_div.append(ma_id);
+                        container_div.append(maty_id);
+                        container_div.append(maty);
                         let delete_button = $("<button></button>");
                         delete_button.attr("class", "btn btn-primary mb-3");
                         delete_button.text("Delete Machine");

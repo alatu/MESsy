@@ -27,8 +27,16 @@
                         let container_div = $("<div></div>");
                         container_div.attr("style", "border:1px solid black;");
                         container_div.attr("class", "mb-3");
-                        let login_name = $("<p></p>").text(i["serialnumber"]);
-                        container_div.append(login_name);
+                        let m_id = $("<p></p>").text("ID Machine: " + i["serialnumber"]);
+                        let c_prod = $("<p></p>").text("Product: " + i["cur_product_name"]);
+                        let quant = $("<p></p>").text("Quantity: " + i["quantity"]);
+                        let c_user = $("<p></p>").text("User: " + i["user"]);
+                        let c_room = $("<p></p>").text("Room: " + i["room"]);
+                        container_div.append(m_id);
+                        container_div.append(c_prod);
+                        container_div.append(quant);
+                        container_div.append(c_user);
+                        container_div.append(c_room);
                         let delete_button = $("<button></button>");
                         delete_button.attr("class", "btn btn-primary mb-3");
                         delete_button.text("Logout User");

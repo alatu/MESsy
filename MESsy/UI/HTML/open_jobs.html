@@ -33,13 +33,17 @@
 
             $("#get_open_jobs").click(function () {
                 $("#open_jobcontainer").empty();
-                $.get("/uiapi/open_job/", function (data, status) {
+                $.get("/uiapi/open_job", function (data, status) {
                     for (let i of data) {
                         let container_div = $("<div></div>");
                         container_div.attr("style", "border:1px solid black;");
                         container_div.attr("class", "mb-3");
-                        let open_job_name = $("<p></p>").text("Product ID: " + i["id_product"] + " Quantity: " + i["quantity"]);
-                        container_div.append(open_job_name);
+                        let p_id = $("<p></p>").text("Product ID: " + i["id_product"]);
+                        let p_name = $("<p></p>").text("Product name: " + i["product_name"]);
+                        let quant = $("<p></p>").text("Quantity: " + i["quantity"]);
+                        container_div.append(p_id);
+                        container_div.append(p_name);
+                        container_div.append(quant);
                         let delete_button = $("<button></button>");
                         delete_button.attr("class", "btn btn-primary mb-3");
                         delete_button.text("Delete Open Job");

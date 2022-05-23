@@ -90,16 +90,22 @@ class Machine_Type(BaseModel):
 class Machine(BaseModel):
     id: int
     id_machine_type: int
+    machine_type: str | None
 
 
 class Logins(BaseModel):
     serialnumber: int
+    cur_product_name: str
+    quantity: int
+    user: str
+    room: str
 
 
 class Open_Job(BaseModel):
     id: int | None
     id_product: int
     quantity: int
+    product_name: str | None
 
 
 class Product(BaseModel):
@@ -453,12 +459,30 @@ def ui_get_login():
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id_machine FROM Machine_login;
+            SELECT id_machine, id_current_user, id_room FROM Machine_login;
         """)
         rows = cursor.fetchall()
-    result = []
-    for i in rows:
-        result.append(Logins(serialnumber=i[0]))
+        result = []
+        for i in rows:
+            cursor.execute("""
+                SELECT p.product_name, cj.quantity FROM Current_Jobs cj
+                INNER JOIN Products p ON p.id==cj.id_product
+                INNER JOIN Machine_login ml ON ml.id==cj.id_machine
+                WHERE ml.id_machine==?;
+            """, (i[0], ))
+            rows_cj = cursor.fetchall()
+            cursor.execute("""
+                SELECT user_name FROM Users
+                WHERE id==?;
+            """, (i[1], ))
+            rows_user = cursor.fetchall()
+            cursor.execute("""
+                SELECT room_description FROM Rooms
+                WHERE id==?;
+            """, (i[2], ))
+            rows_room = cursor.fetchall()
+            result.append(Logins(serialnumber=i[0], cur_product_name=rows_cj[0][0] if rows_cj else "Kein aktueller Job gefunden",
+                          quantity=rows_cj[0][1] if rows_cj else 0, user=rows_user[0][0], room=rows_room[0][0]))
     return result
 
 
@@ -528,12 +552,14 @@ def ui_get_machine_type():
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, id_machine_type FROM Machine;
+            SELECT m.id, m.id_machine_type, mt.machine_type FROM Machine m
+            INNER JOIN Machine_Type mt ON mt.id==m.id_machine_type;
         """)
         rows = cursor.fetchall()
     machines = []
     for i in rows:
-        machines.append(Machine(id=i[0], id_machine_type=i[1]))
+        machines.append(
+            Machine(id=i[0], id_machine_type=i[1], machine_type=i[2]))
     return machines
 
 
@@ -678,12 +704,14 @@ def ui_get_open_job():
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, id_product, quantity FROM Open_Jobs;
+            SELECT oj.id, oj.id_product, oj.quantity, p.product_name FROM Open_Jobs oj
+            INNER JOIN Products p ON p.id==oj.id_product;
         """)
         rows = cursor.fetchall()
     open_jobs = []
     for i in rows:
-        open_jobs.append(Open_Job(id=i[0], id_product=i[1], quantity=i[2]))
+        open_jobs.append(
+            Open_Job(id=i[0], id_product=i[1], quantity=i[2], product_name=i[3]))
     return open_jobs
 
 
