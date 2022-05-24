@@ -33,7 +33,7 @@ CREATE TABLE Products(
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     id_machine_type INTEGER NOT NULL,
     product_name TEXT NOT NULL UNIQUE,
-    product_description TEXT NOT NULL,
+    product_description TEXT,
     next_product_name TEXT NOT NULL,
     n_partitions INTEGER NOT NULL,
     FOREIGN KEY(id_machine_type) REFERENCES Machine_Type(id) ON DELETE CASCADE
@@ -45,8 +45,7 @@ CREATE TABLE Product_Steps(
     step_number INTEGER NOT NULL,
     additional_information TEXT,
     specified_time REAL NOT NULL,
-    needed_materials TEXT NOT NULL,
-    step_description TEXT NOT NULL,
+    step_description TEXT,
     FOREIGN KEY(id_product) REFERENCES Products(id) ON DELETE CASCADE
 );
 

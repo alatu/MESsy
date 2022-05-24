@@ -62,7 +62,6 @@ Data is send in JSON format
             { 
                 "Job":1, 
                 "Step_Number":1, 
-                "Needed_Materials":"Yarn", 
                 "Specified_Time":2.34, 
                 "Additional_Informations":"", 
                 "Step_Description":"Sew" 
@@ -70,7 +69,6 @@ Data is send in JSON format
             { 
                 "Job":2, 
                 "Step_Number":2, 
-                "Needed_Materials":"Scissor", 
                 "Specified_Time":0, 
                 "Additional_Informations":"", 
                 "Step_Description":"Cut" 

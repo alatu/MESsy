@@ -47,7 +47,6 @@ class Login_Data(BaseModel):
 class Step_Info(BaseModel):
     Job: int
     Step_Number: int
-    Needed_Materials: str
     Specified_Time: float
     Additional_Informations: str
     Step_Description: str
@@ -212,7 +211,7 @@ def get_job_from_db(m_id, cursor):
     """, (m_id, ))
     rows_product = cursor.fetchall()
     cursor.execute("""
-        SELECT ps.id, ps.needed_materials, ps.specified_time, ps.additional_information, ps.step_number, ps.step_description FROM Current_Jobs cj
+        SELECT ps.id, ps.specified_time, ps.additional_information, ps.step_number, ps.step_description FROM Current_Jobs cj
         INNER JOIN Machine_login ml ON cj.id_machine==ml.id
         INNER JOIN Products p ON cj.id_product==p.id
         INNER JOIN Product_Steps ps ON p.id==cj.id_product
@@ -339,8 +338,8 @@ def get_job(m_id: int, response: Response):
         if rows[0] and rows[1]:
             steps = []
             for i in rows[1]:
-                steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                                       Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+                steps.append(Step_Info(Job=i[0], Specified_Time=i[1] if i[1] != "" else 0,
+                             Additional_Informations=i[2], Step_Number=i[3], Step_Description=i[4]))
             return_value = Job_Infos(
                 Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
         else:
@@ -365,8 +364,8 @@ def get_job(m_id: int, response: Response):
             rows = get_job_from_db(m_id, cursor)
             steps = []
             for i in rows[1]:
-                steps.append(Step_Info(Job=i[0], Needed_Materials=i[1],
-                                       Specified_Time=i[2] if i[2] != "" else 0, Additional_Informations=i[3], Step_Number=i[4], Step_Description=i[5]))
+                steps.append(Step_Info(Job=i[0], Specified_Time=i[1] if i[1] != "" else 0,
+                             Additional_Informations=i[2], Step_Number=i[3], Step_Description=i[4]))
             return_value = Job_Infos(
                 Materialnumber=rows[0][0][0], Product_Name=rows[0][0][1], Steps=steps, Quantity=rows[0][0][2], URL_Pictures=rows[2], URL_Videos=rows[3], Description=rows[0][0][3], Split=rows[0][0][4])
     return return_value
@@ -856,10 +855,16 @@ def ui_get_products():
 
 @app.delete("/uiapi/products/{p_id}")
 def ui_delete_products(p_id: int):
-    path = os.path.join("./MESsy/videos", str(p_id))
-    shutil.rmtree(path)
-    path = os.path.join("./MESsy/images", str(p_id))
-    shutil.rmtree(path)
+    try:
+        path = os.path.join("./MESsy/videos", str(p_id))
+        shutil.rmtree(path)
+    except:
+        pass
+    try:
+        path = os.path.join("./MESsy/images", str(p_id))
+        shutil.rmtree(path)
+    except:
+        pass
     with sqlite3.connect("./MESsy/DB/DB.sqlite3") as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -898,11 +903,11 @@ async def ui_post_products(product: UploadFile, response: Response):
                         """, (row[0], ))
                         rows_db = cursor.fetchall()
                         product_id = rows_db[0][0]
-                    if index >= 3:
+                    if index >= 3 and row[0] != "":
                         cursor.execute("""
-                            INSERT INTO Product_Steps (id_product, step_number, step_description, needed_materials, specified_time, additional_information)
-                            VALUES (?, ?, ?, ?, ?, ?);
-                        """, (product_id, row[0], row[1], row[2], float(row[3]), row[4]))
+                            INSERT INTO Product_Steps (id_product, step_number, step_description, specified_time, additional_information)
+                            VALUES (?, ?, ?, ?, ?);
+                        """, (product_id, row[0], row[1], float(row[2].replace(",", ".")) if row[2] != "" else 0.0, row[3]))
                 path = os.path.join("./MESsy/videos", str(product_id))
                 if os.path.exists(path):
                     shutil.rmtree(path)
