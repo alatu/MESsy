@@ -5,7 +5,6 @@ import sqlite3
 from time import time, asctime, localtime, daylight, tzname
 from datetime import date, datetime
 from pydantic import BaseModel
-from setuptools import PEP420PackageFinder
 from starlette.responses import FileResponse
 import configparser
 import aiofiles
