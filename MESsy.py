@@ -175,16 +175,15 @@ def job_done(m_id: int, amount: int = None):
                 SELECT id FROM Products WHERE product_name==?;
             """, (rows_next[0][0], ))
             rows_new = cursor.fetchall()
-            if rows_next[0][1] > 0:
-                for i in range(0, quantity - rows_next[0][1], rows_next[0][1]):
-                    cursor.execute("""
-                        INSERT INTO Open_Jobs (id_product, quantity)
-                        VALUES (?, ?);
-                    """, (rows_new[0][0], rows_next[0][1]))
+            if rows_next[0][1] > 0 and quantity > 1:
                 cursor.execute("""
                     INSERT INTO Open_Jobs (id_product, quantity)
                     VALUES (?, ?);
-                """, (rows_new[0][0], j if (j := (quantity % rows_next[0][1])) != 0 else rows_next[0][1]))
+                """, (rows_new[0][0], quantity // 2))
+                cursor.execute("""
+                    INSERT INTO Open_Jobs (id_product, quantity)
+                    VALUES (?, ?);
+                """, (rows_new[0][0], quantity - (quantity // 2)))
             elif quantity > 0:
                 cursor.execute("""
                     INSERT INTO Open_Jobs (id_product, quantity)
