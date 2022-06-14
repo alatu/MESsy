@@ -185,12 +185,12 @@ def job_done(m_id: int, amount: int = None):
                     INSERT INTO Open_Jobs (id_product, quantity)
                     VALUES (?, ?);
                 """, (rows_new[0][0], j if (j := (quantity % rows_next[0][1])) != 0 else rows_next[0][1]))
-            else:
+            elif quantity > 0:
                 cursor.execute("""
                     INSERT INTO Open_Jobs (id_product, quantity)
                     VALUES (?, ?);
                 """, (rows_new[0][0], quantity))
-        if amount is not None:
+        if amount is not None and (rows[0][1] - amount) > 0:
             cursor.execute("""
                 INSERT INTO Open_Jobs (id_product, quantity)
                 VALUES (?, ?);
@@ -213,7 +213,7 @@ def get_job_from_db(m_id, cursor):
         SELECT ps.id, ps.specified_time, ps.additional_information, ps.step_number, ps.step_description FROM Current_Jobs cj
         INNER JOIN Machine_login ml ON cj.id_machine==ml.id
         INNER JOIN Products p ON cj.id_product==p.id
-        INNER JOIN Product_Steps ps ON p.id==cj.id_product
+        INNER JOIN Product_Steps ps ON ps.id_product==p.id
         WHERE ml.id_machine == ?;
     """, (m_id, ))
     rows_steps = cursor.fetchall()
