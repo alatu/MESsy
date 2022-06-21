@@ -162,10 +162,11 @@ def job_done(m_id: int, amount: int = None):
         if not rows or (amount is not None and amount > rows[0][1]):
             return False
         quantity = amount if amount is not None else rows[0][1]
-        cursor.execute("""
-            INSERT INTO Produced_Products (id_product, id_user, serial_number_machine, completion_time, quantity)
-            VALUES (?, ?, ?, ?, ?);
-        """, (rows[0][0], rows[0][2], m_id, int(time()), quantity))
+        if quantity > 0:
+            cursor.execute("""
+                INSERT INTO Produced_Products (id_product, id_user, serial_number_machine, completion_time, quantity)
+                VALUES (?, ?, ?, ?, ?);
+            """, (rows[0][0], rows[0][2], m_id, int(time()), quantity))
         cursor.execute("""
             SELECT next_product_name, n_partitions FROM Products WHERE id==?;
         """, (rows[0][0], ))
