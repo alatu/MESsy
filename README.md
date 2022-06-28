@@ -129,3 +129,11 @@ Data is send in JSON format
     {
         "ratio_done":0.123
     } 
+
+# Links
+
+Admin Page: \<IP\>:8000/ui/HTML/admin.html
+
+# Further Information
+
+In case of questions or problems just open a Issue.
